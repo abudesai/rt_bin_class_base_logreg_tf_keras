@@ -9,7 +9,7 @@ RUN apt-get -y update && apt-get install -y --no-install-recommends \
 
 
 COPY ./requirements.txt .
-RUN pip3 install -r requirements.txt 
+RUN pip3 install -r requirements.txt  
 
 
 COPY app ./opt/app
