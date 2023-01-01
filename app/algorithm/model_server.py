@@ -31,6 +31,8 @@ class ModelServer:
         return self.model
 
     def _get_predictions(self, data):
+        """ Returns the predicted class probilities
+        """
         preprocessor = self._get_preprocessor()
         model = self._get_model()
 
@@ -47,21 +49,29 @@ class ModelServer:
         preds = model.predict(pred_X)
         return preds
 
-    def predict_proba(self, data):
 
+    def predict_proba(self, data):
+        """ Returns predicted probabilities of each class """
         preds = self._get_predictions(data)
-        # get class names (labels)
-        class_names = pipeline.get_class_names(self.preprocessor, model_cfg)
-        # return the prediction df with the id and class probability fields
+        class_names = pipeline.get_class_names(self.preprocessor, model_cfg)        
         preds_df = data[[self.id_field_name]].copy()
         preds_df[class_names[0]] = 1 - preds
         preds_df[class_names[-1]] = preds
-
         return preds_df
+
+
+    def predict(self, data):        
+        class_names = pipeline.get_class_names(self.preprocessor, model_cfg)
+        preds_df = data[[self.id_field_name]].copy()
+        preds_df["prediction"] = pd.DataFrame(
+            self.predict_proba(data), columns=class_names
+        ).idxmax(axis=1)
+        return preds_df
+
 
     def predict_to_json(self, data):
         preds_df = self.predict_proba(data)
-        class_names = preds_df.columns[1:]
+        class_names = pipeline.get_class_names(self.preprocessor, model_cfg)
         preds_df["__label"] = pd.DataFrame(
             preds_df[class_names], columns=class_names
         ).idxmax(axis=1)
@@ -77,16 +87,5 @@ class ModelServer:
                 if k not in [self.id_field_name, "__label"]
             }
             predictions_response.append(pred_obj)
+        
         return predictions_response
-
-    def predict(self, data):
-        preds = self._get_predictions(data)
-
-        # inverse transform the prediction probabilities to class labels
-        pred_classes = pipeline.get_inverse_transform_on_preds(
-            self.preprocessor, model_cfg, preds
-        )
-        preds_df = data[[self.id_field_name]].copy()
-        preds_df["prediction"] = pred_classes
-
-        return preds_df
